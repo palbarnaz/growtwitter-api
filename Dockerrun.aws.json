@@ -1,0 +1,31 @@
+{
+    "AWSEBDockerrunVersion": 2,
+    "containerDefinitions": [
+      {
+        "name": "laravel-api",
+        "image": "php:8.1-apache",
+        "memory": 128,
+        "essential": true,
+        "portMappings": [
+          {
+            "hostPort": 80,
+            "containerPort": 80
+          }
+        ],
+        "mountPoints": [
+          {
+            "sourceVolume": "laravel-api-volume",
+            "containerPath": "/var/www/html"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "laravel-api-volume",
+        "host": {
+          "sourcePath": "/var/app/current"
+        }
+      }
+    ]
+  }

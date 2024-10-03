@@ -1,3 +1,60 @@
+# name: CI/CD Backend
+
+# on:
+#   # Manual trigger
+#   workflow_dispatch:
+#   # Trigger on push to main branch
+#   # push:
+#   #   branches:
+#   #     - main
+
+# jobs:
+#   build_and_deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v2
+
+#       # Setup PHP environment
+#       - name: Setup PHP
+#         uses: shivammathur/setup-php@v2
+#         with:
+#           php-version: '8.2'
+#           extensions: mbstring, bcmath, ctype, fileinfo, json, openssl, pdo, tokenizer, xml, curl, zip
+#           ini-values: post_max_size=256M, upload_max_filesize=256M, memory_limit=1G
+#           coverage: none
+
+#       # Install Composer dependencies
+#       - name: Install Composer dependencies
+#         run: composer install --prefer-dist --no-progress --no-suggest --optimize-autoloader
+
+#       # Run migrations
+#       - name: Run database migrations
+#         run: php artisan migrate --force
+#         env:
+#           DB_CONNECTION: ${{ secrets.DB_CONNECTION }}
+#           DB_HOST: ${{ secrets.DB_HOST }}
+#           DB_PORT: ${{ secrets.DB_PORT }}
+#           DB_DATABASE: ${{ secrets.DB_DATABASE }}
+#           DB_USERNAME: ${{ secrets.DB_USERNAME }}
+#           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+#       # Zip the Laravel project for deployment
+#       - name: Zip for deployment
+#         run: zip -r backend.zip * .[^.]*
+
+#       # Deploy to AWS Elastic Beanstalk
+#       - name: Deploy to Elastic Beanstalk
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: 'us-east-1'
+#         run: |
+#           aws s3 cp backend.zip s3://api-growtwitter/backend.zip
+#           aws elasticbeanstalk create-application-version --application-name GrowtwitterApii --version-label v1 --source-bundle S3Bucket="api-growtwitter",S3Key="backend.zip"
+#           aws elasticbeanstalk update-environment --application-name GrowtwitterApii --environment-name GrowtwitterApiEnv --version-label v1
+
 name: CI/CD Backend
 
 on:
@@ -40,17 +97,23 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
-      # Zip the Laravel project for deployment
-      - name: Zip for deployment
-        run: zip -r backend.zip * .[^.]*
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t growtwitter-api .
 
-      # Deploy to AWS Elastic Beanstalk
+      # Push Docker image to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: 'us-east-1'
+          AWS_REGION: 'sa-east-1'  # Altere para a região correta
         run: |
-          aws s3 cp backend.zip s3://api-growtwitter/backend.zip
-          aws elasticbeanstalk create-application-version --application-name AppBackend --version-label v1 --source-bundle S3Bucket="api-growtwitter",S3Key="backend.zip"
-          aws elasticbeanstalk update-environment --application-name AppBackend --environment-name AppBackendEnv --version-label v1
+          # First, login to Elastic Beanstalk
+          $(aws ecr get-login --no-include-email --region $AWS_REGION)
+          # Tag the image
+          docker tag growtwitter-api:latest <your-ecr-repo-uri>:latest
+          # Push the image
+          docker push <your-ecr-repo-uri>:latest
+          # Update the Elastic Beanstalk environment
+          aws elasticbeanstalk update-environment --application-name GrowtwitterApii --environment-name GrowtwitterApiEnv --version-label latest
